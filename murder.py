@@ -11,14 +11,18 @@ dp.include_router(router)
 
 async def set_bot_commands():
     commands = [
-        BotCommand(command="startgame", description="Почати взаємодію з ботом"),
-        BotCommand(command="test", description="Отримати список команд"),
+        BotCommand(command="startgame", description="Почати гру"),
+        BotCommand(command="test", description="тест, чи працює бот (легкий)"),
     ]
     await bot.set_my_commands(commands)
 
 @router.message(Command("test"))
 async def send_test(message: Message):
     await message.answer("successful")
+
+@router.message(Command("help"))
+async def send_help(message: Message):
+    await message.answer('commands')
 
 @router.message(Command("startgame"))
 async def send_game(message: Message):
