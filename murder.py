@@ -35,9 +35,16 @@ queue_active = False
 
 @router.message(Command("startgame"))
 async def send_game(message: Message):
+    global queue_active
+    global current_message_text
+    global message_text
     button = InlineKeyboardButton(text="", callback_data="")
     current_active_or_inactive()
-    await message.answer("Кімната вже готова, приєднуйся до гри!!!", reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+    if  queue_active==True:
+        message_text = f"Кількість гравців: {len(queue)}"
+    else:
+        message_text = f"Кімната вже готова, приєднуйся до гри!!!"
+    await message.answer(message_text, reply_markup=InlineKeyboardMarkup(inline_keyboard=[
                 [InlineKeyboardButton(text="Приєднатися", callback_data="join_queue")]]))
 
 def current_active_or_inactive():
@@ -51,10 +58,14 @@ def current_active_or_inactive():
             inline_keyboard=[
                 [InlineKeyboardButton(text="Приєднатися", callback_data="join_queue")]])
 
+
 @router.callback_query(lambda c: c.data in ['join_queue', 'leave_queue'])
 async def process_callback(callback_query: types.CallbackQuery):
     user_id = callback_query.from_user.id
     global queue_active
+    global queue
+    global message_text
+    global current_message_text
 
     if callback_query.data == "join_queue":
         if user_id not in queue:
@@ -73,8 +84,12 @@ async def process_callback(callback_query: types.CallbackQuery):
         else:
             await bot.answer_callback_query(callback_query.id, text="Ви не в черзі!")
 
-    await callback_query.message.edit_reply_markup(reply_markup=current_active_or_inactive())
+    if callback_query.data == "join_queue":
+        current_message_text = f"Кількість гравців: {len(queue)}"
+    else:
+        current_message_text = f"Кімната вже готова, приєднуйся до гри!!!"
 
+    await callback_query.message.edit_text(text=current_message_text, reply_markup=current_active_or_inactive())
 
 async def main():
     await set_bot_commands()
