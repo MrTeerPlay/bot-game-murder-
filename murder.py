@@ -26,15 +26,31 @@ async def send_help(message: Message):
     for commands in commands:
         await message.answer("/" + commands.command + " - " + commands.description)
 
+##################################################################################################################################################
+#####################################################################################################
+queue = []
+queue_active = False
+
+def active_or_inactive():
+    if queue_active==True:
+        return InlineKeyboardButton(text="Вийти", callback_data="leave_queue")
+    else:
+        return InlineKeyboardButton(text="Приєднатися", callback_data="callback_data")
+
 @router.message(Command("startgame"))
 async def send_game(message: Message):
     button = InlineKeyboardButton(text="Приєднатися", callback_data="callback_data")
     keyboard = InlineKeyboardMarkup(inline_keyboard=[[button]])
-    await message.answer("Кімната вже запущена, приєднуйся до гри!!!", reply_markup=keyboard)
+    await message.answer("Кімната вже готова, приєднуйся до гри!!!", reply_markup=keyboard)
 
 @router.callback_query(lambda callback_query: callback_query.data == "callback_data")
 async def callback(query: CallbackQuery):
     await query.answer("")
+
+
+#####################################################################################################
+####################################################################################################################################################
+
 
 async def main():
     await set_bot_commands()
