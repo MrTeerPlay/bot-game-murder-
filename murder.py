@@ -28,46 +28,33 @@ async def send_help(message: Message):
     for commands in commands:
         await message.answer("/" + commands.command + " - " + commands.description)
 
-def active_or_inactive():
-    if queue_active==True:
-        return InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="Вийти", callback_data="leave_queue")]
-    ])
-    else:
-        return InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="Приєднатися", callback_data="join_queue")]
-            ])
-
 ##################################################################################################################################################
 #####################################################################################################
 queue = []
 queue_active = False
 
-def active_or_inactive():
-    if queue_active==True:
-        return InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="Вийти", callback_data="leave_queue")]
-    ])
-    else:
-        return InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="Приєднатися", callback_data="join_queue")]
-            ])
-
 @router.message(Command("startgame"))
 async def send_game(message: Message):
-    button = InlineKeyboardButton(text="Приєднатися", callback_data="join_queue")
-    keyboard = InlineKeyboardMarkup(inline_kyeboard=[[active_or_inactive()]])
-    await message.answer("Кімната вже готова, приєднуйся до гри!!!", reply_markup=keyboard)
+    button = InlineKeyboardButton(text="", callback_data="")
+    current_active_or_inactive()
+    await message.answer("Кімната вже готова, приєднуйся до гри!!!", reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="Приєднатися", callback_data="join_queue")]]))
 
-@router.callback_query(lambda callback_query: callback_query.data == "callback_data")
-async def callback(query: CallbackQuery):
-    await query.answer("")
+def current_active_or_inactive():
+    if queue_active==True:
+        return InlineKeyboardMarkup(
+            inline_keyboard=[
+                [InlineKeyboardButton(text="Вийти", callback_data="leave_queue")]])
+    
+    else:
+        return InlineKeyboardMarkup(
+            inline_keyboard=[
+                [InlineKeyboardButton(text="Приєднатися", callback_data="join_queue")]])
 
 @router.callback_query(lambda c: c.data in ['join_queue', 'leave_queue'])
 async def process_callback(callback_query: types.CallbackQuery):
     user_id = callback_query.from_user.id
     global queue_active
-    await callback.message.edit_reply_markup(reply_markup=keyboard())
 
     if callback_query.data == "join_queue":
         if user_id not in queue:
@@ -77,7 +64,7 @@ async def process_callback(callback_query: types.CallbackQuery):
         else:
             await bot.answer_callback_query(callback_query.id, text="Ви вже в черзі!")
     
-    if callback_query.data == "leave_queue":
+    elif callback_query.data == "leave_queue":
         if user_id in queue:
             queue.remove(user_id)
             if not queue:  # Якщо черга порожня, вона більше не активна
@@ -86,7 +73,7 @@ async def process_callback(callback_query: types.CallbackQuery):
         else:
             await bot.answer_callback_query(callback_query.id, text="Ви не в черзі!")
 
-
+    await callback_query.message.edit_reply_markup(reply_markup=current_active_or_inactive())
 
 
 async def main():
