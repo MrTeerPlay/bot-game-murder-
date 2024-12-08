@@ -66,6 +66,8 @@ def current_active_or_inactive():
 @router.callback_query(lambda c: c.data == "start_game")
 async def start_game_callback(callback_query: CallbackQuery):
     global queue, active_players, roles, items
+    global game_in_progress
+    global players2
 
     # Очистимо чергу, адже гра розпочалася
     active_players = queue.copy()
@@ -84,11 +86,54 @@ async def start_game_callback(callback_query: CallbackQuery):
             await bot.send_message(player_id, f"Гра розпочалася! Ваша роль: {role}. Ваш предмет: {item}.")
         except Exception as e:
             print(f"Не вдалося відправити повідомлення користувачу {player_id}: {e}")
+    message_text_1 = "Гра розпочалася, черга очищена!"
+    await asyncio.sleep(1)
+    for i in range(5, -1, -1):
+        message_text_1 = f"Підготуйтеся до гри {i}"
+        try:
+            # Оновлюємо повідомлення кожну секунду
+            await callback_query.message.edit_text(text=message_text_1, reply_markup=None)
+            await asyncio.sleep(1)  # Затримка на 1 секунду
+        except Exception as e:
+            print(f"Не вдалося оновити повідомлення: {e}")
+
+        if i == 0: 
+            message_text_1 = "Гра розпочалася!"
+            await callback_query.message.edit_text(text=message_text_1, reply_markup=None)
+            await asyncio.sleep(3)
+            message_text_1 = "Сонце зійшло, все стало яскравим, всі зійшлись"
+            await callback_query.message.edit_text(text=message_text_1, reply_markup=None)
+            game_in_progress = True
+            await asyncio.sleep(4)
+            message_text_1 = "Залишилось 20 секунд!"
+            await callback_query.message.edit_text(text=message_text_1, reply_markup=None)
+            await asyncio.sleep(9)
+    for i in range(10, 0, -1):
+        message_text_1 = f"Залишилось {i} секунд"
+        try:
+            # Оновлюємо повідомлення кожну секунду
+            await callback_query.message.edit_text(text=message_text_1, reply_markup=None)
+            await asyncio.sleep(1)  # Затримка на 1 секунду
+        except Exception as e:
+            print(f"Не вдалося оновити повідомлення: {e}")
+        if i == 1:
+            await asyncio.sleep(1)
+            message_text_1 = "Настала ніч, все потемніло, всі розійшлись"
+            await callback_query.message.edit_text(text=message_text_1, reply_markup=None)
+            game_in_progress = False
+            await asyncio.sleep(20)
+        for player_id in players2:
+            role = roles.get(player_id)
+            if role == "Мафія":
+                try:
+            # Якщо роль Мафія, то надсилаємо повідомлення з проханням вибрати жертву
+                    await bot.send_message(player_id, "Вибери кого вбити")
+                except Exception as e:
+                    print(f"Не вдалося відправити повідомлення користувачу {player_id}: {e}")
+
 
 
     # Оновлюємо текст і клавіатуру в повідомленні
-    message_text_1 = "Гра розпочалася, черга очищена!"
-    await callback_query.message.edit_text(text=message_text_1, reply_markup=None)
 ######################################################################################
 def assign_role(players):
     mafia = random.choice(players)
@@ -110,11 +155,34 @@ def assign_item(players):
 ##############################################################################################
 @router.message()
 async def restrict_messages(message: Message):
-    if not game_in_progress:
+    global game_in_progress
+    if game_in_progress == False:
         # Видалити повідомлення
         await message.delete()
+    else:
+        b = 1
 
+#####################################################################################################################
+@router.message()
+async def handle_private_message(message: Message):
+    global active_players
+    global players2
 
+    # Перевіряємо, чи повідомлення з приватного чату
+    if message.chat.type == "private":
+        try:
+            # Отримуємо номер гравця з тексту
+            player_number = int(message.text.strip())
+
+            # Перевіряємо, чи є гравець у списку
+            if player_number in players2:
+                players2.remove(player_number)  # Видаляємо гравця зі списку
+                await message.answer(f"Гравця {player_number} видалено зі списку.")
+            else:
+                await message.answer(f"Гравець {player_number} не знайдений у списку.")
+        except ValueError:
+            # Якщо введення не є числом
+            await message.answer("Будь ласка, введіть коректний номер гравця.")
             
 
 #####################################################################################################################################
