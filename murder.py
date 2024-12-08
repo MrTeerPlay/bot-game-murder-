@@ -36,6 +36,7 @@ queue_active = False
 active_players = []
 roles = {}
 items = {}
+game_in_progress = False  # Змінна, яка вказує, чи можна писати
 ################################################################################################################################
 @router.message(Command("startgame"))
 async def send_game(message: Message):
@@ -68,13 +69,15 @@ async def start_game_callback(callback_query: CallbackQuery):
 
     # Очистимо чергу, адже гра розпочалася
     active_players = queue.copy()
+    fake_players = [2, 3, 4]
+    players2 = active_players + fake_players
     queue = []
 
-    for player_id in active_players:
-        roles[player_id] = assign_role()  # Функція для призначення ролей
-        items[player_id] = assign_item()  # Функція для призначення предметів
+    for player_id in players2:
+        roles = assign_role(players2)  # Функція для призначення ролей
+        items = assign_item(players2)  # Функція для призначення предметів
     
-    for player_id in active_players:
+    for player_id in players2:
         try:
             role = roles[player_id]
             item = items[player_id]
@@ -82,20 +85,37 @@ async def start_game_callback(callback_query: CallbackQuery):
         except Exception as e:
             print(f"Не вдалося відправити повідомлення користувачу {player_id}: {e}")
 
-    await bot.answer_callback_query(callback_query.id, text=f"Гра розпочалася! Ваша роль:{role}")
 
     # Оновлюємо текст і клавіатуру в повідомленні
     message_text_1 = "Гра розпочалася, черга очищена!"
     await callback_query.message.edit_text(text=message_text_1, reply_markup=None)
 ######################################################################################
-def assign_role():
-    roles_list = ["Мирний", "Мафія", "Детектив"]
-    return random.choice(roles_list)
+def assign_role(players):
+    mafia = random.choice(players)
+    detective = random.choice([p for p in players if p != mafia])
+    player_roles = {mafia: 'Мафія', detective: 'Детектив'}
+    for player in players:
+        if player != detective and player != mafia:
+            player_roles[player] = 'Виживший'
+    return player_roles
 
 # Функція для призначення предметів
-def assign_item():
+def assign_item(players):
     items_list = ["спічки", "мотузка", "ножниці", "молоток"]
-    return random.choice(items_list)
+    random.shuffle(items_list)
+    player_items = {}
+    for i, player in enumerate(players):
+        player_items[player] = items_list[i]
+    return player_items
+##############################################################################################
+@router.message()
+async def restrict_messages(message: Message):
+    if not game_in_progress:
+        # Видалити повідомлення
+        await message.delete()
+
+
+            
 
 #####################################################################################################################################
 @router.callback_query(lambda c: c.data in ['join_queue', 'leave_queue'])
