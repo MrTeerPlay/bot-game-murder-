@@ -68,12 +68,17 @@ async def start_game_callback(callback_query: CallbackQuery):
     global queue, active_players, roles, items
     global game_in_progress
     global players2
-
+    global role
+    global whrite
+    global kill
+    global player_number
     # Очистимо чергу, адже гра розпочалася
     active_players = queue.copy()
     fake_players = [2, 3, 4]
     players2 = active_players + fake_players
     queue = []
+    whrite = False
+    kill = False
 
     for player_id in players2:
         roles = assign_role(players2)  # Функція для призначення ролей
@@ -100,14 +105,14 @@ async def start_game_callback(callback_query: CallbackQuery):
         if i == 0: 
             message_text_1 = "Гра розпочалася!"
             await callback_query.message.edit_text(text=message_text_1, reply_markup=None)
-            await asyncio.sleep(3)
+            await asyncio.sleep(1)
             message_text_1 = "Сонце зійшло, все стало яскравим, всі зійшлись"
             await callback_query.message.edit_text(text=message_text_1, reply_markup=None)
             game_in_progress = True
-            await asyncio.sleep(4)
-            message_text_1 = "Залишилось 20 секунд!"
-            await callback_query.message.edit_text(text=message_text_1, reply_markup=None)
-            await asyncio.sleep(9)
+            #await asyncio.sleep(1)
+            #message_text_1 = "Залишилось 20 секунд!"
+            #await callback_query.message.edit_text(text=message_text_1, reply_markup=None)
+            await asyncio.sleep(1)
     for i in range(10, 0, -1):
         message_text_1 = f"Залишилось {i} секунд"
         try:
@@ -121,16 +126,20 @@ async def start_game_callback(callback_query: CallbackQuery):
             message_text_1 = "Настала ніч, все потемніло, всі розійшлись"
             await callback_query.message.edit_text(text=message_text_1, reply_markup=None)
             game_in_progress = False
-            await asyncio.sleep(20)
-        for player_id in players2:
-            role = roles.get(player_id)
-            if role == "Мафія":
-                try:
+            await asyncio.sleep(1)
+            for player_id in players2:
+                role = roles.get(player_id)
+                if role == "Мафія":
+                    try:
             # Якщо роль Мафія, то надсилаємо повідомлення з проханням вибрати жертву
-                    await bot.send_message(player_id, "Вибери кого вбити")
-                except Exception as e:
-                    print(f"Не вдалося відправити повідомлення користувачу {player_id}: {e}")
-
+                        await bot.send_message(player_id, "Вибери кого вбити")
+                        whrite = True
+                    except Exception as e:
+                        print(f"Не вдалося відправити повідомлення користувачу {player_id}: {e}")
+                        if kill == True:
+                            message_text_1 = f"Гравець {player_number} був вбитий!"
+                            whrite = False
+                            await callback_query.message.edit_text(text=message_text_1, reply_markup=None)
 
 
     # Оновлюємо текст і клавіатуру в повідомленні
@@ -152,37 +161,59 @@ def assign_item(players):
     for i, player in enumerate(players):
         player_items[player] = items_list[i]
     return player_items
-##############################################################################################
+
+#####################################################################################################################
 @router.message()
-async def restrict_messages(message: Message):
+async def handle_private_message(message: Message):
+    global players2  # Список гравців, які залишились в грі
+    global roles
+    global kill
+    global player_number
     global game_in_progress
+    global whrite
+
     if game_in_progress == False:
+        if whrite == True:
+            if roles.get(message.from_user.id) == "Мафія":
+                return
         # Видалити повідомлення
         await message.delete()
     else:
         b = 1
 
-#####################################################################################################################
-@router.message()
-async def handle_private_message(message: Message):
-    global active_players
-    global players2
-
     # Перевіряємо, чи повідомлення з приватного чату
-    if message.chat.type == "private":
+    if message.chat.type == "private" and roles.get(message.from_user.id) == "Мафія":
         try:
             # Отримуємо номер гравця з тексту
             player_number = int(message.text.strip())
 
+            print(f"Роль користувача {message.from_user.id}: {roles.get(message.from_user.id)}")
+            print(f"Тип чату: {message.chat.type}")
+            print(f"Отримано номер гравця: {player_number}")
+            print(f"Список гравців в грі: {players2}")
+
             # Перевіряємо, чи є гравець у списку
             if player_number in players2:
-                players2.remove(player_number)  # Видаляємо гравця зі списку
-                await message.answer(f"Гравця {player_number} видалено зі списку.")
+               
+                # Повідомляємо всіх про те, що цей гравець вбитий
+                for player_id in players2:
+                    try:
+                        await bot.send_message(player_id, f"Гравець {player_number} був вбитий.")
+                        kill = True
+                    except Exception as e:
+                        print(f"Не вдалося відправити повідомлення користувачу {player_id}: {e}")
+
+                # Повідомляємо того, хто вбив, що він успішно зробив це
+                await message.answer(f"Гравець {player_number} вбитий!")
+
             else:
                 await message.answer(f"Гравець {player_number} не знайдений у списку.")
+        
         except ValueError:
             # Якщо введення не є числом
             await message.answer("Будь ласка, введіть коректний номер гравця.")
+
+        players2.remove(player_number)
             
 
 #####################################################################################################################################
