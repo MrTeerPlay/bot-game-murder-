@@ -71,7 +71,8 @@ async def start_game_callback(callback_query: CallbackQuery):
     global role
     global whrite
     global kill
-    global player_number
+    global keyboard
+    global kill2
     # Очистимо чергу, адже гра розпочалася
     active_players = queue.copy()
     fake_players = [2, 3, 4]
@@ -79,6 +80,7 @@ async def start_game_callback(callback_query: CallbackQuery):
     queue = []
     whrite = False
     kill = False
+    gameover = False
 
     for player_id in players2:
         roles = assign_role(players2)  # Функція для призначення ролей
@@ -106,44 +108,58 @@ async def start_game_callback(callback_query: CallbackQuery):
             message_text_1 = "Гра розпочалася!"
             await callback_query.message.edit_text(text=message_text_1, reply_markup=None)
             await asyncio.sleep(1)
-            message_text_1 = "Сонце зійшло, все стало яскравим, всі зійшлись"
-            await callback_query.message.edit_text(text=message_text_1, reply_markup=None)
-            game_in_progress = True
-            #await asyncio.sleep(1)
-            #message_text_1 = "Залишилось 20 секунд!"
-            #await callback_query.message.edit_text(text=message_text_1, reply_markup=None)
-            await asyncio.sleep(1)
-    for i in range(10, 0, -1):
-        message_text_1 = f"Залишилось {i} секунд"
-        try:
+    while gameover != True:
+        message_text_1 = "Сонце зійшло, все стало яскравим, всі зійшлись"
+        await callback_query.message.edit_text(text=message_text_1, reply_markup=None)
+        game_in_progress = True
+        await asyncio.sleep(1)
+
+    # Цикл for тепер знаходиться всередині циклу while, і він виконується під час кожної ітерації while
+        for i in range(10, 0, -1):
+            message_text_1 = f"Залишилось {i} секунд"
+            try:
             # Оновлюємо повідомлення кожну секунду
-            await callback_query.message.edit_text(text=message_text_1, reply_markup=None)
-            await asyncio.sleep(1)  # Затримка на 1 секунду
-        except Exception as e:
-            print(f"Не вдалося оновити повідомлення: {e}")
-        if i == 1:
-            await asyncio.sleep(1)
-            message_text_1 = "Настала ніч, все потемніло, всі розійшлись"
-            await callback_query.message.edit_text(text=message_text_1, reply_markup=None)
-            game_in_progress = False
-            await asyncio.sleep(1)
-            for player_id in players2:
-                role = roles.get(player_id)
-                if role == "Мафія":
-                    try:
-            # Якщо роль Мафія, то надсилаємо повідомлення з проханням вибрати жертву
-                        await bot.send_message(player_id, "Вибери кого вбити")
-                        whrite = True
-                    except Exception as e:
-                        print(f"Не вдалося відправити повідомлення користувачу {player_id}: {e}")
-                        if kill == True:
-                            message_text_1 = f"Гравець {player_number} був вбитий!"
-                            whrite = False
-                            await callback_query.message.edit_text(text=message_text_1, reply_markup=None)
+                await callback_query.message.edit_text(text=message_text_1, reply_markup=None)
+                await asyncio.sleep(1)  # Затримка на 1 секунду
+            except Exception as e:
+                print(f"Не вдалося оновити повідомлення: {e}")
+            if i == 1:
+                await asyncio.sleep(1)
+                message_text_1 = "Настала ніч, все потемніло, всі розійшлись"
+                await callback_query.message.edit_text(text=message_text_1, reply_markup=None)
+                game_in_progress = False
+                await asyncio.sleep(1)
+                for player_id in players2:
+                    role = roles.get(player_id)
+                    if role == "Мафія":
+                        try:
+                        # Якщо роль Мафія, то надсилаємо повідомлення з проханням вибрати жертву
+                            await bot.send_message(player_id, "Вибери кого вбити", reply_markup=keyboard)
+                            if kill2 == True:
+                                await callback_query.message.edit_text(f"Вибери предмет для вбивства гравця {player3}", reply_markup=create_item_buttons())
+                                item = callback_query.data.split('_')[1]  # Отримуємо вибраний предмет
+                                player3 = callback_query.message.text.split()[-1]  # Отримуємо ID гравця, з яким був пов'язаний вибір
+                                kill = True
+                            else:
+                                kill = False
+                        # Виводимо повідомлення про вбивство
+                        except Exception as e:
+                            print(f"Не вдалося відправити повідомлення користувачу {player_id}: {e}")
 
+                            if kill == True:
+                                await callback_query.message.edit_text(f"Гравець {player3} був вбитий!")
+                                whrite = False
+                            else:
+                                message_text_1 = "Сьогодні ніхто не помер"
+            
 
-    # Оновлюємо текст і клавіатуру в повідомленні
-######################################################################################
+#########################################################################################################################################################
+async def vote_player(callback_query: CallbackQuery):
+    global kill2
+    player3 = callback_query.data.split('_')[1]  # Отримуємо ім'я гравця, за якого була натиснута кнопка
+    kill2 = True
+
+###################################################################################################################
 def assign_role(players):
     mafia = random.choice(players)
     detective = random.choice([p for p in players if p != mafia])
@@ -162,13 +178,33 @@ def assign_item(players):
         player_items[player] = items_list[i]
     return player_items
 
+roles = assign_role(players2)
+items = assign_item(players2)
+
+###################################################################################################
+def create_player_buttons(players2):
+    global keyboard
+    keyboard = InlineKeyboardMarkup(row_width=2)  # Кількість кнопок у рядку
+    for player in players2:
+        button = InlineKeyboardButton(text=player, callback_data=f"vote_{player}")
+        keyboard.add(button)
+    return keyboard
+
+#Заміна кнопок для предметів
+def create_item_buttons():
+    global keyboard
+    keyboard = InlineKeyboardMarkup(row_width=2)  # Кількість кнопок у рядку
+    for item in items:
+        button = InlineKeyboardButton(text=item, callback_data=f"item_{item}")
+        keyboard.add(button)
+    return keyboard
+
 #####################################################################################################################
 @router.message()
 async def handle_private_message(message: Message):
     global players2  # Список гравців, які залишились в грі
     global roles
     global kill
-    global player_number
     global game_in_progress
     global whrite
 
@@ -180,40 +216,6 @@ async def handle_private_message(message: Message):
         await message.delete()
     else:
         b = 1
-
-    # Перевіряємо, чи повідомлення з приватного чату
-    if message.chat.type == "private" and roles.get(message.from_user.id) == "Мафія":
-        try:
-            # Отримуємо номер гравця з тексту
-            player_number = int(message.text.strip())
-
-            print(f"Роль користувача {message.from_user.id}: {roles.get(message.from_user.id)}")
-            print(f"Тип чату: {message.chat.type}")
-            print(f"Отримано номер гравця: {player_number}")
-            print(f"Список гравців в грі: {players2}")
-
-            # Перевіряємо, чи є гравець у списку
-            if player_number in players2:
-               
-                # Повідомляємо всіх про те, що цей гравець вбитий
-                for player_id in players2:
-                    try:
-                        await bot.send_message(player_id, f"Гравець {player_number} був вбитий.")
-                        kill = True
-                    except Exception as e:
-                        print(f"Не вдалося відправити повідомлення користувачу {player_id}: {e}")
-
-                # Повідомляємо того, хто вбив, що він успішно зробив це
-                await message.answer(f"Гравець {player_number} вбитий!")
-
-            else:
-                await message.answer(f"Гравець {player_number} не знайдений у списку.")
-        
-        except ValueError:
-            # Якщо введення не є числом
-            await message.answer("Будь ласка, введіть коректний номер гравця.")
-
-        players2.remove(player_number)
             
 
 #####################################################################################################################################
