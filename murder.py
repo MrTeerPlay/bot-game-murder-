@@ -1,8 +1,10 @@
 import asyncio
 import random
+from asyncio import TimeoutError
+from asyncio import wait_for
 from aiogram import Bot, Dispatcher, types, Router
 from aiogram.filters import Command
-from aiogram.types import Message, CallbackQuery, BotCommand
+from aiogram.types import Message, CallbackQuery, BotCommand, User
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.exceptions import TelegramRetryAfter
 
@@ -88,7 +90,7 @@ async def start_game_callback(callback_query: CallbackQuery):
     global keyboard2
     global mafia_players
     global item_keyboard
-
+    global callback_queue
 
     # Очистимо чергу, адже гра розпочалася
     active_players = queue.copy()
@@ -98,6 +100,7 @@ async def start_game_callback(callback_query: CallbackQuery):
     kill = False
     gameover = False
     players2 = active_players + fake_players
+    callback_queue = asyncio.Queue()
 
     for player_id in players2:
         roles = assign_role(players2)  # Функція для призначення ролей
@@ -113,27 +116,28 @@ async def start_game_callback(callback_query: CallbackQuery):
     gameover_players = len(players2) - mafia_players
     message_text_1 = "Гра розпочалася, черга очищена!"
     await asyncio.sleep(1)
+    
     for i in range(5, -1, -1):
         message_text_1 = f"Підготуйтеся до гри {i}"
         try:
             # Оновлюємо повідомлення кожну секунду
-            await callback_query.message.edit_text(text=message_text_1, reply_markup=None)
+ #           await callback_query.message.edit_text(text=message_text_1, reply_markup=None)
             await asyncio.sleep(1)  # Затримка на 1 секунду
         except Exception as e:
             print(f"Не вдалося оновити повідомлення: {e}")
 
         if i == 0: 
             message_text_1 = "Гра розпочалася!"
-            await callback_query.message.edit_text(text=message_text_1, reply_markup=None)
+  #          await callback_query.message.edit_text(text=message_text_1, reply_markup=None)
             await asyncio.sleep(1)
             message_text_1 = "Сонце зійшло, все стало яскравим, всі зійшлись"
-            await callback_query.message.edit_text(text=message_text_1, reply_markup=None)
+   #         await callback_query.message.edit_text(text=message_text_1, reply_markup=None)
     while gameover != True:
         game_in_progress = True
         await asyncio.sleep(1)
         for i in range(2, 0, -1):
-            message_text_1 = f"Залишилось {i} секунд"
-            await callback_query.message.edit_text(text=message_text_1, reply_markup=None)
+ #           message_text_1 = f"Залишилось {i} секунд"
+  #          await callback_query.message.edit_text(text=message_text_1, reply_markup=None)
             await asyncio.sleep(1)  # Затримка на 1 секунду
         message_text_1 = "Настала ніч, все потемніло, всі розійшлись"
         await callback_query.message.edit_text(text=message_text_1, reply_markup=None)
@@ -146,7 +150,7 @@ async def start_game_callback(callback_query: CallbackQuery):
                             mafia_players = [player_id for player_id, role in roles.items() if role == "Мафія"]
                             keyboard2 = create_player_buttons(players2, mafia_players)
                             await bot.send_message(player_id, "Виберіть кого вбити", reply_markup=keyboard2)
-                            kill_callback = await bot.wait_for_callback_query(player_id, timeout=20)  # Очікування вибору (макс. 60 секунд)
+                            kill_callback = await wait_for_callback_query(bot, player_id, timeout=20)  # Очікування вибору (макс. 60 секунд)
                             if kill_callback.data.startswith("kill_"):
                                 selected_victim = kill_callback.data.split('_')[1]  # Отримуємо ID вибраного гравця
                                 await kill_callback.answer(f"Ви вибрали {selected_victim} як жертву.")
@@ -154,7 +158,7 @@ async def start_game_callback(callback_query: CallbackQuery):
                                 item_keyboard = create_item_buttons()
                                 await bot.send_message(player_id, f"Виберіть предмет для вбивства {selected_victim}", reply_markup=item_keyboard)
                                 # Очікуємо вибору предмету
-                                item_callback = await bot.wait_for_callback_query(player_id, timeout=20)
+                                item_callback = await wait_for_callback_query(bot, player_id, timeout=20)
                                 if item_callback.data.startswith("item_"):
                                     selected_item = item_callback.data.split('_')[1]  # Отримуємо вибраний предмет
                                     await item_callback.answer(f"Ви вибрали {selected_item} для вбивства {selected_victim}.")
@@ -222,9 +226,19 @@ def assign_item(players):
     for i, player in enumerate(players):
         player_items[player] = items_list[i]
     return player_items
+##################################################################################################################################
 
+async def wait_for_callback_query(user_id, timeout=20):
+    global callback_queue
+    try:
+        # Очікуємо відповідний callback-запит
+        callback_query = await asyncio.wait_for(callback_queue.get(), timeout=timeout)
+        if callback_query.from_user.id == user_id:  # Перевіряємо, чи це потрібний користувач
+            return callback_query
+    except asyncio.TimeoutError:
+        return None  # Тайм-аут
 
-###################################################################################################
+######################################################################################################################
 def create_player_buttons(players2, mafia_players):
     target_players = [str(player) for player in players2 if player not in mafia_players]
     buttons = [[InlineKeyboardButton(text=player, callback_data=f"kill_{player}")] for player in target_players]
@@ -237,13 +251,29 @@ def create_item_buttons():
     buttons = [InlineKeyboardButton(text=item, callback_data=f"item_{item}") for item in items]
     item_keyboard.add(*buttons)  # Додаємо всі кнопки
     return item_keyboard
+#############################################################################################################################
+
+@router.callback_query()
+async def handle_any_callback_query(callback_query: CallbackQuery):
+    global callback_queue
+    await callback_queue.put(callback_query)
+
 #################################################################################################################
 @router.callback_query(lambda c: c.data.startswith("kill_"))
-async def kill_player_callback(callback_query: CallbackQuery):
+async def handle_kill_callback(callback_query: CallbackQuery):
     global selected_victim
-    global keyboard2
-    # Отримуємо ім'я гравця, якого вибрали для вбивства
-    selected_victim = callback_query.data.split('_')[1]  # Отримуємо ім'я гравця після "kill_"
+
+    try:
+        # Очікуємо вибір гравця
+        kill_callback = await asyncio.wait_for(callback_queue.get(), timeout=20)
+        if kill_callback.data.startswith("kill_"):
+            selected_victim = kill_callback.data.split('_')[1]
+            await callback_query.answer(f"Ви вибрали {selected_victim} як жертву.")
+        else:
+            await callback_query.answer("Час вийшов, ви не вибрали жертву.")
+    except asyncio.TimeoutError:
+        await callback_query.answer("Тайм-аут. Ви не зробили вибір.")
+  # Отримуємо ім'я гравця після "kill_"
 ################################################################################################################################
 
 @router.callback_query(lambda c: c.data.startswith("item_"))
