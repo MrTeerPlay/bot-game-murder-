@@ -106,7 +106,6 @@ async def start_game_callback(callback_query: CallbackQuery):
     global current_message
     global startkill
     global continue1
-    global player_id
 
     # Очистимо чергу, адже гра розпочалася
     active_players = queue.copy()
@@ -272,42 +271,45 @@ def create_player_buttons(players2, mafia_players):
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 # Функція для призначення предметів
-def assign_item(players):
-    global players2
+def assign_item(players2):
     global player_items
     global items_list
     global mafia
     global mafia_player
+    global mafia_items
     items_list = ["спічки", "провод", "ножниці", "бутилка води", "акамулятор", "електрошокер", "розбите дзеркало", "наскрізна труба", "коняча доза снодійного", "ліхтар"]
 
-    if len(players) > len(items_list):
+    if len(players2) > len(items_list):
         # Повторюємо предмети стільки разів, скільки потрібно, щоб покрити всіх гравців
-        items_list = items_list * (len(players) // len(items_list)) + items_list[:len(players) % len(items_list)]
+        items_list = items_list * (len(players2) // len(items_list)) + items_list[:len(players2) % len(items_list)]
 
     random.shuffle(items_list)
+
     player_items = {}
-    mafia_items = items_list[0]
-    other_items = items_list
+    mafia_items = random.sample(items_list, len(mafia))
     #items_list = items_list[len(mafia):]  # Залишок предметів для інших гравців
     for i, mafia_player in enumerate(mafia):
         player_items[mafia_player] = mafia_items[i]
 
+    remaining_items = [item for item in items_list if item not in mafia_items]
+    other_players = [player for player in players2 if player not in mafia]
+    if len(remaining_items) < len(other_players):
+        # Призначаємо предмети за кількістю гравців
+        remaining_items = (remaining_items * ((len(other_players) // len(remaining_items)) + 1))[:len(other_players)]
     # Розподіл предметів серед інших гравців
-    other_players = [player for player in players if player not in mafia]
+    other_players = [player for player in players2 if player not in mafia]
     for i, other_player in enumerate(other_players):
-        player_items[other_player] = other_items[i]
+        player_items[other_player] = remaining_items[i]
 
     return player_items
 
 #Заміна кнопок для предметів
 
-def get_available_items_for_player(player_id):
-    global player_items
-
+def get_available_items_for_player(mafia):
+    global mafia_items
     # Переконайтесь, що `player_items[player_id]` існує та є списком
-    if player_id in player_items and isinstance(player_items[player_id], list):
-        return player_items[player_id]
-    return []  # Повертаємо порожній список, якщо дані відсутні
+    #if player_id in player_items and isinstance(player_items[player_id], list):
+        #return player_items[player_id]  # Повертаємо порожній список, якщо дані відсутні
 
 
 ##########################################################################################################
@@ -315,6 +317,7 @@ is_item_selected = False
 continue1 = False
 #################################################################################################################
 selected_player = None
+selected_player_str = str(selected_player)
 #####################################################################################################################
 @router.callback_query(lambda c: c.data.startswith("kill_"))
 async def kill_player_callback(callback_query: CallbackQuery):
@@ -329,22 +332,21 @@ async def kill_player_callback(callback_query: CallbackQuery):
     #if startkill == True:
     try:
             #await asyncio.wait_for(wait_for_victim_selection(callback_query.from_user.id, timeout=20), timeout=20)
-            if selected_player:
         # Зберігаємо вибір жертви
                 selected_player = int(callback_query.data.split("_")[1])
-                await callback_query.answer(player_id, f"Ви вибрали гравця {selected_player}")
+                #await bot.answer_callback_query(callback_query.from_user.id, f"Ви вибрали гравця {selected_player}")
         
         # Створюємо клавіатуру для вибору предмету
-                item_keyboard = create_item_buttons(items_list, selected_player, callback_query.from_user.id)  # Викликаємо функцію для створення клавіатури з предметами
-                await bot.send_message(callback_query.from_user.id, f"Виберіть предмет для вбивства {selected_player}", reply_markup=item_keyboard)
-            else:
-                await bot.send_message(callback_query.from_user.id, "Ця жертва вже не доступна для вбивства!")
+                item_keyboard = create_item_buttons(callback_query.from_user.id)  # Викликаємо функцію для створення клавіатури з предметами
+                await bot.send_message(callback_query.from_user.id, f"Виберіть предмет для вбивства {selected_player_str}", reply_markup=item_keyboard)
+
+                #await bot.send_message(callback_query.from_user.id, "Ця жертва вже не доступна для вбивства!")
     except asyncio.TimeoutError:
             # Якщо час вичерпано, інформуємо користувача
             await bot.send_message(callback_query.from_user.id, "Час на вибір предмета вичерпано!")
 
 def create_item_buttons(player_id):
-    available_items = get_available_items_for_player(player_id)
+    available_items = list(mafia_items)    #get_available_items_for_player(player_id)
     print("available_items:", available_items)
     if not isinstance(available_items, list):
         print("Error: available_items is not a list")
