@@ -254,9 +254,9 @@ async def start_game_callback(callback_query: CallbackQuery):
         continue1 = False
         vote_timer = None
         game_in_progress = True
-        if game_two == False:
+        if game_two == True:
             if round_one == False:
-                if vote_counts and players2 and players_voted and votes and players_with_max_votes:
+                if vote_counts:
                     players2 = [player for player in players2 if player != eliminated_player]
                     votes.clear()
                     players_voted.clear()
@@ -331,7 +331,7 @@ async def start_game_callback(callback_query: CallbackQuery):
                             await callback_query.message.edit_text(text=message_text_1, reply_markup=None)
                         #await callback_query.message.edit_text(text=message_text_1, reply_markup=None)
                         await asyncio.sleep(0)
-        #game_two = True
+        game_two = True
         round_one = False
 
 player_victims = {}
