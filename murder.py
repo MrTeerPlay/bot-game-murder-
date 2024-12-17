@@ -40,14 +40,14 @@ if 'message_text_current' not in locals():
 
 vote_counts = defaultdict(int)
 ################################################################################################
-async def process_votes():
-    global votes
-    global message4
-    global most_voted_players
-    global max_votes
-    global message5
+#async def process_votes():
+    #global votes
+    #global message4
+    #global most_voted_players
+    #global max_votes
+    #global message5
 
-    vote_count = {player_id: 0 for player_id in players2}
+    #vote_count = {player_id: 0 for player_id in players2}
     # Підраховуємо кількість голосів за кожного гравця
     #for vote in votes.values():
         #if vote in vote_count:
@@ -56,25 +56,25 @@ async def process_votes():
             #vote_count[vote] = 1
 
     # Знаходимо гравця з найбільшим числом голосів
-    for player_voted in votes.values():  # votes містить ID гравців, за яких проголосували
-        if player_voted in vote_count:
-            vote_count[player_voted] += 1
+    #for player_voted in votes.values():  # votes містить ID гравців, за яких проголосували
+        #if player_voted in vote_count:
+            #vote_count[player_voted] += 1
 
-    most_voted_players = []
-    max_votes = 0
+    #most_voted_players = []
+    #max_votes = 0
 
-    for player_id in vote_count:
-        if vote_count[player_id] > max_votes:
-                    most_voted_players = [player_id]  # Скидаємо список і додаємо нового лідера
-                    max_votes = vote_count[player_id]
-        elif vote_count[player_id] == max_votes:
-                    most_voted_players.append(player_id)
+    #for player_id in vote_count:
+        #if vote_count[player_id] > max_votes:
+                    #most_voted_players = [player_id]  # Скидаємо список і додаємо нового лідера
+                    #max_votes = vote_count[player_id]
+        #elif vote_count[player_id] == max_votes:
+                    #most_voted_players.append(player_id)
     
     # Виводимо результати голосування в груповому чаті
 
-        message4 = (f"Голосування завершено! Гравець {most_voted_players} отримав {max_votes} голосів.")
+        #message4 = (f"Голосування завершено! Гравець {most_voted_players} отримав {max_votes} голосів.")
 
-        message5 = (f"Голосування завершено! Нікого не було страчено")
+        #message5 = (f"Голосування завершено! Нікого не було страчено")
 #######################################################################################
 @router.message(Command("test"))
 async def send_test(message: Message):
@@ -93,10 +93,16 @@ async def end_vote(global_message):
     global vote_counts
     global eliminated_player
     global players_with_max_votes
+    if not vote_counts:
+        return
     players_with_max_votes = get_players_with_max_votes(vote_counts)
     print(f"players_with_max_votes: {players_with_max_votes}")
     eliminated_player = int(players_with_max_votes[0])
-    await bot.send_message(players2[0], f"Гравець, якого виключено: {eliminated_player}")
+    if not vote_counts:  # Якщо ніхто не голосував
+        await global_message.edit_text("Ніхто ні за кого не проголосував!")
+        return  # Завершуємо голосування, гра продовжується
+    else:
+        await bot.send_message(players2[0], f"Гравець, якого виключено: {eliminated_player}")
     if eliminated_player in players2:
         players2.remove(eliminated_player)
     #else:
@@ -250,14 +256,15 @@ async def start_game_callback(callback_query: CallbackQuery):
         game_in_progress = True
         if game_two == False:
             if round_one == False:
-                players2 = [player for player in players2 if player != eliminated_player]
-                votes.clear()
-                players_voted.clear()
-                vote_counts.clear()  # Очистка голосів
-                players_with_max_votes.clear() 
-                for player in players2:
+                if vote_counts and players2 and players_voted and votes and players_with_max_votes:
+                    players2 = [player for player in players2 if player != eliminated_player]
+                    votes.clear()
+                    players_voted.clear()
+                    vote_counts.clear()  # Очистка голосів
+                    players_with_max_votes.clear() 
+                    for player in players2:
             # Збираємо голоси для кожного гравця
-                    pass
+                        pass
             vote_keyboard = create_vote_buttons(players2)
             message_text_1 = "Голосуйте за того, кого хочете стратити"
             if message_text_1 != message_text_current or current_message.reply_markup is None:
@@ -265,6 +272,11 @@ async def start_game_callback(callback_query: CallbackQuery):
         vote_timer = await wait_for_vote(timeout=20)
         contiune2 = True
         await end_vote(global_message)
+        if not vote_counts:  # Якщо ніхто не голосував
+            message_text_1 = "Ніхто ні за кого не проголосував!"
+            if message_text_1 != message_text_current or current_message.reply_markup is None:
+                await callback_query.message.edit_text(text=message_text_1, reply_markup=None)
+                await asyncio.sleep(2)
         #if vote_timer is None:
             #if max_votes == 0:
                 #if message5 != message_text_current or current_message.reply_markup is None:
@@ -610,6 +622,8 @@ async def vote_callback(callback: types.CallbackQuery):
     # Якщо кількість голосів дорівнює кількості гравців
 #####################################################################################
 def get_players_with_max_votes(vote_counts):  # Якщо немає голосів, повертаємо порожній список
+    if not vote_counts:
+        return
     max_votes = max(vote_counts.values())  # Знаходимо максимальну кількість голосів
     players_with_max_votes = [player for player, votes in vote_counts.items() if votes == max_votes]
     print(players_with_max_votes)
