@@ -93,13 +93,14 @@ async def end_vote(global_message):
     global vote_counts
     global eliminated_player
     global players_with_max_votes
+    global message_text_1
     if not vote_counts:
         return
     players_with_max_votes = get_players_with_max_votes(vote_counts)
     print(f"players_with_max_votes: {players_with_max_votes}")
     eliminated_player = int(players_with_max_votes[0])
     if not vote_counts:  # Якщо ніхто не голосував
-        await global_message.edit_text("Ніхто ні за кого не проголосував!")
+        #await global_message.edit_text("Ніхто ні за кого не проголосував!")
         return  # Завершуємо голосування, гра продовжується
     else:
         await bot.send_message(players2[0], f"Гравець, якого виключено: {eliminated_player}")
@@ -132,6 +133,51 @@ async def end_vote(global_message):
         #await message.answer(f"Гравець {eliminated_player} отримав найбільше голосів і вилучається з гри.")
         #await message.answer(f"Залишилися гравці: {', '.join(map(str, players2))}")
 #####################################################################################################
+global_message = None
+async def end_vote1(global_message):
+    global continue5
+    global vote_counts
+    global eliminated_player
+    global message_text_1
+    if not vote_counts:
+        return
+    players_with_max_votes = get_players_with_max_votes(vote_counts)
+    print(f"players_with_max_votes: {players_with_max_votes}")
+    eliminated_player = int(players_with_max_votes[0])
+    #if not vote_counts:  # Якщо ніхто не голосував
+        #await global_message.edit_text("Ніхто ні за кого не проголосував!")
+        #return  # Завершуємо голосування, гра продовжується
+    #else:
+    #if eliminated_player in players2:
+        #players2.remove(eliminated_player)
+    await bot.send_message(players2[0], f"Гравець, якого вибрано: {eliminated_player}")
+#####################################################################################################
+global_message = None
+async def end_vote2(global_message):
+    global continue5
+    global vote_counts_item
+    global eliminated_item
+    global eliminated_player
+    global message_text_1
+    global kill
+    if not vote_counts:
+        return
+    #items_with_max_votes = get_items_with_max_votes(vote_counts_item)
+    items_with_max_votes = get_items_with_max_votes()
+    print(f"items_with_max_votes: {items_with_max_votes}")
+    if items_with_max_votes is None:
+        await bot.send_message(players2[0], f"Предмет, не було вибрано: {eliminated_player}")
+        return
+    eliminated_item = int(items_with_max_votes[0])
+    #if not vote_counts:  # Якщо ніхто не голосував
+        #await global_message.edit_text("Ніхто ні за кого не проголосував!")
+        #return  # Завершуємо голосування, гра продовжується
+    #else:
+    if eliminated_player in players2:
+        players2.remove(eliminated_player)
+    await bot.send_message(players2[0], f"Предмет, якого вибрано: {eliminated_player}")
+    kill == True
+##########################################################################################################
 queue = []
 queue_active = False
 active_players = []
@@ -175,8 +221,9 @@ def current_active_or_inactive():
 
     if queue_active:  # Черга активна
         buttons.append(InlineKeyboardButton(text="Вийти", callback_data="leave_queue"))
-    #else:  # Черга неактивна
-        #buttons.append(InlineKeyboardButton(text="Приєднатися", callback_data="join_queue"))
+    
+    else: # Черга неактивна
+        buttons.append(InlineKeyboardButton(text="Приєднатися", callback_data="join_queue"))
     
     return InlineKeyboardMarkup(inline_keyboard=[buttons])
 
@@ -195,11 +242,15 @@ async def start_game_callback(callback_query: CallbackQuery):
     global current_message
     global startkill
     global continue1
-    global vote_timer
+    #global vote_timer
     global contiune2
     global votes
     global players_voted
     global players_with_max_votes
+    global items_with_max_votes
+    global message_text_1
+    global message_text_5
+    global gameover
 
     # Очистимо чергу, адже гра розпочалася
     active_players = queue.copy()
@@ -227,7 +278,6 @@ async def start_game_callback(callback_query: CallbackQuery):
             await bot.send_message(player_id, f"Гра розпочалася! Ваша роль: {role}. Ваш предмет: {item}.")
         except Exception as e:
             print(f"Не вдалося відправити повідомлення користувачу {player_id}: {e}")
-    gameover_players = len(players2) - mafia_players
     message_text_1 = "Гра розпочалася, черга очищена!"
     await asyncio.sleep(1)
     message_text_1 = f"Підготуйтеся до гри!"
@@ -249,10 +299,12 @@ async def start_game_callback(callback_query: CallbackQuery):
     if message_text_1 != message_text_current or current_message.reply_markup is None:
             await callback_query.message.edit_text(text=message_text_1, reply_markup=None)
     #await callback_query.message.edit_text(text=message_text_1, reply_markup=None)
-    while gameover != True:
+    while gameover == False:
+        update_mafia_items()
         startkill = True
         continue1 = False
         vote_timer = None
+        how_to_kill = None
         game_in_progress = True
         if game_two == True:
             if round_one == False:
@@ -260,8 +312,11 @@ async def start_game_callback(callback_query: CallbackQuery):
                     players2 = [player for player in players2 if player != eliminated_player]
                     votes.clear()
                     players_voted.clear()
+                    items_voted.clear()
+                    vote_counts_item.clear()
                     vote_counts.clear()  # Очистка голосів
-                    players_with_max_votes.clear() 
+                    #players_with_max_votes.clear()
+                    #items_with_max_votes.clear() 
                     for player in players2:
             # Збираємо голоси для кожного гравця
                         pass
@@ -269,14 +324,14 @@ async def start_game_callback(callback_query: CallbackQuery):
             message_text_1 = "Голосуйте за того, кого хочете стратити"
             if message_text_1 != message_text_current or current_message.reply_markup is None:
                 await callback_query.message.edit_text(text=message_text_1, reply_markup=vote_keyboard)
-        vote_timer = await wait_for_vote(timeout=20)
-        contiune2 = True
-        await end_vote(global_message)
-        if not vote_counts:  # Якщо ніхто не голосував
-            message_text_1 = "Ніхто ні за кого не проголосував!"
-            if message_text_1 != message_text_current or current_message.reply_markup is None:
-                await callback_query.message.edit_text(text=message_text_1, reply_markup=None)
-                await asyncio.sleep(2)
+            vote_timer = await wait_for_vote(timeout=20)
+            contiune2 = True
+            await end_vote(global_message)
+            if not vote_counts:  # Якщо ніхто не голосував
+                #message_text_1 = "Ніхто ні за кого не проголосував!"
+                message_text_5 = "Ніхто ні за кого не проголосував!"
+                await callback_query.message.edit_text(text=message_text_5, reply_markup=None)
+        await asyncio.sleep(2)
         #if vote_timer is None:
             #if max_votes == 0:
                 #if message5 != message_text_current or current_message.reply_markup is None:
@@ -303,8 +358,8 @@ async def start_game_callback(callback_query: CallbackQuery):
                         # Якщо роль Мафія, то надсилаємо повідомлення з проханням вибрати жертву
                         keyboard2 = create_player_buttons(players2, mafia_players)
                         await bot.send_message(player_id, "Виберіть кого вбити", reply_markup=keyboard2)
-                        #player_timer = 
-                        await wait_for_victim_selection(player_id, timeout=20)
+                        await wait_for_victim_selection(player_id, timeout=25)
+                        #await end_vote(global_message)
                         # Якщо час вичерпано, інформуємо користувача
                         #await bot.send_message(player_id, "Час на вибір предмета вичерпано!")
 
@@ -317,20 +372,30 @@ async def start_game_callback(callback_query: CallbackQuery):
                         #player_items[player_id] = selected_item
                     except Exception as e:
                         print(f"Не вдалося відправити повідомлення користувачу {player_id}: {e}")
-        if continue1 == True:
                 # Виводимо повідомлення про вбивство
-                if kill == True:
+        #await wait_for_victim_selection(player_id, timeout=20)
+        if kill == True:
                     startkill = False
                     if message_text_1 != message_text_current or current_message.reply_markup is None:
                         await callback_query.message.edit_text(f"Сонце зійшло, все стало яскравим, всі зійшлись. \nГравець {selected_player} був вбитий!", reply_markup=None)
                     whrite = False
-                    await asyncio.sleep(0)
-                else:
-                        message_text_1 = ("Сонце зійшло, все стало яскравим, всі зійшлись. \nСьогодні ніхто не помер")
-                        if message_text_1 != message_text_current or current_message.reply_markup is None:
-                            await callback_query.message.edit_text(text=message_text_1, reply_markup=None)
+                    for player_id in players2:
+                        if player_id in roles and roles[player_id] == 'Детектив':
+                            try:
+                                how_the_kill(selected_item)
+                                await bot.send_message(player_id, how_to_kill, reply_markup=None)
+                                print (f"Детектив {player_id} отримав інформацію про вбивство предметом {selected_item}: {how_to_kill}")
+                            except Exception as e:
+                                print(f"Не вдалося відправити повідомлення користувачу {player_id}: {e}")
+                                print (f"Детектив {player_id} отримав інформацію про вбивство предметом {selected_item}: {how_to_kill}")
+                    await asyncio.sleep(2)
+        else:
+                    #await callback_query.message.edit_text(text=message_text_1, reply_markup=None)
+                    message_text_1 = f"Сонце зійшло, все стало яскравим, всі зійшлись. \nНіхто не помер!"
+                    await callback_query.message.edit_text(message_text_1, reply_markup=None)
                         #await callback_query.message.edit_text(text=message_text_1, reply_markup=None)
-                        await asyncio.sleep(0)
+                    await asyncio.sleep(2)
+        await gameover_or_no()
         game_two = True
         round_one = False
 
@@ -361,7 +426,15 @@ async def wait_for_vote(timeout: int):
     await asyncio.sleep(timeout)
     continue5 = True
 
-
+###################################################################################################################
+gameover_players = None
+async def gameover_or_no():
+    gameover_players = len(players2) - mafia_players
+    if gameover_players == mafia_players:
+        gameover = True
+        return gameover
+    else:
+        return
 ##################################################################################################################
 def assign_role(players):
     global mafia_players
@@ -468,23 +541,46 @@ async def kill_player_callback(callback_query: CallbackQuery):
         # Зберігаємо вибір жертви
                 selected_player = int(callback_query.data.split("kill_")[1])
                 selected_player_str = str(selected_player)
+                if callback_query.from_user.id in players_voted:
+        # Якщо користувач вже голосував, відправляємо повідомлення і не дозволяємо голосувати повторно
+                    await callback_query.answer(f"Ви вже проголосували за гравця {selected_player}.")
+                    return
+    
+                players_voted.add(callback_query.from_user.id)
+                vote_counts[selected_player] += 1
+                await callback_query.answer(f"Ваш голос за гравця {selected_player} зараховано.")
                 #await bot.answer_callback_query(callback_query.from_user.id, f"Ви вибрали гравця {selected_player}")
-        
+                await wait_for_vote(timeout=10)
+                #if vote_timer is None:
+                    #print("Time is out... All correst!")
+
+                    #return
+                await end_vote1(global_message)
         # Створюємо клавіатуру для вибору предмету
+
                 item_keyboard = create_item_buttons(callback_query.from_user.id)  # Викликаємо функцію для створення клавіатури з предметами
                 await bot.send_message(callback_query.from_user.id, f"Виберіть предмет для вбивства {selected_player_str}", reply_markup=item_keyboard)
-
+        # Якщо користувач вже голосував, відправляємо повідомлення і не дозволяємо голосувати повторно
+                #items_voted.add(callback_query.from_user.id)
+                #vote_counts[selected_item] += 1
+                #await callback_query.answer(f"Ваш голос за предмет {selected_item} зараховано.")
+                await wait_for_vote(timeout=10)
+                await end_vote2(global_message)
                 #await bot.send_message(callback_query.from_user.id, "Ця жертва вже не доступна для вбивства!")
+    # Повідомляємо гравцю про вбивство
+                await bot.send_message(callback_query.from_user.id, "Гра триває, виберіть іншу жертву або дійте за іншим планом.")
+                await bot.send_message(callback_query.from_user.id, f"Ви вбили {selected_player} за допомогою {selected_item}.")
     except asyncio.TimeoutError:
             # Якщо час вичерпано, інформуємо користувача
             await bot.send_message(callback_query.from_user.id, "Час на вибір предмета вичерпано!")
     continue1 = True
+    #items_with_max_votes.clear()
 
 def create_item_buttons(player_id):
     available_items = list(mafia_items)    #get_available_items_for_player(player_id)
     print("available_items:", available_items)
     if not isinstance(available_items, list):
-        print("Error: available_items is not a list")
+        print("Error: available_items are not a list")
         return None  # Якщо це не список, повертаємо None
     if not available_items: 
         return None  # Повертаємо None, якщо список порожній
@@ -492,24 +588,57 @@ def create_item_buttons(player_id):
     print (available_items)
     return InlineKeyboardMarkup(inline_keyboard=[buttons])
 
+def how_the_kill(selected_item):
+    if selected_item == "спічки":
+        how_to_kill = "Ви помітили на тілі сліди ожогів"
+    elif selected_item == "провод":
+        how_to_kill = "Ви помітили на тілі сліди задухи"
+    elif selected_item == "ножниці":
+        how_to_kill = "Ви помітили на тілі сліди того, що його зарізали"
+    elif selected_item == "ліхтар":
+        how_to_kill = "Ви помітили на тілі сліди від сильного удару"
+    elif selected_item == "електрошокер":
+        how_to_kill = "Ви помітили на тілі сліди сильного розряду"
+    elif selected_item == "розбите дзеркало":
+        how_to_kill = "Ви помітили на тілі сліди від порізів"
+    elif selected_item == "наскрізна труба":
+        how_to_kill = "Ви помітили на тілі місце кровоспуску"
+    elif selected_item == "коняча доза снодійного":
+        how_to_kill = "Ви помітили в роті жертви багато піни"
+    elif selected_item == "акамулятор":
+        how_to_kill = "Ви помітили, що в тіла розбита голова"
+    elif selected_item == "бутилка води":
+        how_to_kill = "Ви помітили, що у тіла в легенях багато води"
+    return how_to_kill
+items_voted = set()
+vote_counts_item = Counter()
+selected_item = None
+
 @router.callback_query(lambda c: c.data.startswith("item_"))
 async def item_selection_callback(callback_query: CallbackQuery):
     global selected_player, players2
     global user_item_selection
     global kill
+    global selected_item
+    global votes, items_voted
+    global vote_counts_item
+    votes.clear()
     
     # Отримуємо вибраний предмет
     selected_item = callback_query.data.split('_')[1]
 
-    # Повідомляємо гравцю про вбивство
-    await bot.send_message(callback_query.from_user.id, f"Ви вбили {selected_player} за допомогою {selected_item}.")
-    user_item_selection[callback_query.from_user.id] = True
-    kill = True
-    # Видаляємо жертву з гри
-    players2.remove(selected_player)
+    if callback_query.from_user.id in items_voted:
+        # Якщо користувач вже голосував, відправляємо повідомлення і не дозволяємо голосувати повторно
+        await callback_query.answer(f"Ви вже проголосували за предмет {selected_item}.")
+        return
+
+    items_voted.add(callback_query.from_user.id)
+    vote_counts[selected_item] += 1
+    await callback_query.answer(f"Ваш голос за предмет {selected_item} зараховано.")
+    #user_item_selection[callback_query.from_user.id] = True
+    #kill = True
     
     # Можливо потрібно запитати, чи хоче він вибрати іншу жертву або чи буде продовження гри
-    await bot.send_message(callback_query.from_user.id, "Гра триває, виберіть іншу жертву або дійте за іншим планом.")
 
 user_item_selection = {}
 ##########################################################################################################
@@ -538,7 +667,6 @@ async def handle_private_message(message: Message):
     else:
         b = 1
             
-
 #####################################################################################################################################
 @router.callback_query(lambda c: c.data in ['join_queue', 'leave_queue'])
 async def process_callback(callback_query: types.CallbackQuery):
@@ -570,6 +698,7 @@ async def process_callback(callback_query: types.CallbackQuery):
         current_message_text1 = f"Кількість гравців: {len(queue)}"
     else:
         current_message_text1 = f"Кімната вже готова, приєднуйся до гри!!!"
+        await callback_query.message.edit_text(text=current_message_text1, reply_markup=current_active_or_inactive())
 
     if current_message_text1 != message_text_current or current_message.reply_markup is None:
         await callback_query.message.edit_text(text=current_message_text1, reply_markup=current_active_or_inactive())
@@ -620,7 +749,7 @@ async def vote_callback(callback: types.CallbackQuery):
 
     # Перевіряємо, чи всі проголосували
     # Якщо кількість голосів дорівнює кількості гравців
-#####################################################################################
+#################################################################################################
 def get_players_with_max_votes(vote_counts):  # Якщо немає голосів, повертаємо порожній список
     if not vote_counts:
         return
@@ -629,7 +758,34 @@ def get_players_with_max_votes(vote_counts):  # Якщо немає голосі
     print(players_with_max_votes)
     return players_with_max_votes
 ###########################################################################################################################################3
-
+def get_items_with_max_votes(vote_counts_item):  # Якщо немає голосів, повертаємо порожній список
+    global items_with_max_votes
+    if not vote_counts_item:
+        return
+    max_votes = max(vote_counts_item.values())  # Знаходимо максимальну кількість голосів
+    items_with_max_votes = [item for item, votes in vote_counts_item.items() if votes == max_votes]
+    print(items_with_max_votes)
+    return items_with_max_votes
+###########################################################################################################################################3
+def update_mafia_items():
+    global mafia_items, items_list
+    
+    # Перевірка, чи є достатня кількість предметів
+    if len(items_list) < 2:
+        print("Недостатньо предметів для оновлення!")
+        return
+    
+    # Видаляємо останні 2 предмети (якщо вони існують)
+    mafia_items = mafia_items[:2]  # Залишаємо лише перші два предмети
+    
+    # Вибираємо 2 нові предмети, яких немає у списку мафії
+    mafia_items1 = random.sample([item for item in items_list if item not in mafia_items], 2)
+    
+    # Додаємо нові предмети до списку
+    mafia_items.extend(mafia_items1)
+    
+    print(f"Оновлений список предметів мафії: {mafia_items}")
+#########################################################################################################################################
 async def main():
     await set_bot_commands()
     await dp.start_polling(bot)
