@@ -106,8 +106,8 @@ async def end_vote(global_message):
     else:
         await bot.send_message(players2[0], f"Гравець, якого виключено: {eliminated_player}")
     if eliminated_player in players2:
-        #players2.remove(eliminated_player)
-        b=1
+        players2.remove(eliminated_player)
+
     #else:
         #await bot.send_message(players2[0], "Не вдалося визначити гравця для виключення.")
 
@@ -183,12 +183,12 @@ async def end_vote2(global_message):
         #await bot.send_message(players2[0], f"Предмет, не було вибрано: {eliminated_player}")
         #return
     eliminated_item = items_with_max_votes[0] if items_with_max_votes else None
-    if selected_item is not None and selected_player is not None:
-        kill = True
-    else:
-        kill = False
-    if eliminated_player in players2 and kill:
-        #players2.remove(eliminated_player)
+    #if selected_item is not None and selected_player is not None:
+        #kill = True
+    #else:
+        #kill = False
+    if eliminated_player in players2:
+        players2.remove(eliminated_player)
         await bot.send_message(players2[0], f"Предмет, якого вибрано: {eliminated_item}")
         kill == True
     else:
@@ -327,7 +327,7 @@ async def start_game_callback(callback_query: CallbackQuery):
         if game_two == True:
             #if round_one == False:
                 if vote_counts:
-                    players2 = [player for player in players2 if player != eliminated_player]
+                    #players2 = [player for player in players2 if player != eliminated_player]
                     votes.clear()
                     players_voted.clear()
                     items_voted.clear()
@@ -365,7 +365,9 @@ async def start_game_callback(callback_query: CallbackQuery):
                 if message_text_1 != message_text_current or current_message.reply_markup is None:
                     await callback_query.message.edit_text(text=message_text_1, reply_markup=None)
             #await callback_query.message.edit_text(text=message_text_1, reply_markup=None)
-                await asyncio.sleep(1)  # Затримка на 1 секунду
+                await asyncio.sleep(1)  # Затримка на 1 секунду\
+        #selected_player = None
+        players_voted.clear()
         message_text_1 = "Настала ніч, все потемніло, всі розійшлись"
         if message_text_1 != message_text_current or current_message.reply_markup is None:
                 await callback_query.message.edit_text(text=message_text_1, reply_markup=None)
