@@ -98,6 +98,7 @@ async def end_vote(global_message):
         return
     players_with_max_votes = get_players_with_max_votes(vote_counts)
     print(f"players_with_max_votes: {players_with_max_votes}")
+    eliminated_player = None
     eliminated_player = int(players_with_max_votes[0])
     if not vote_counts:  # Якщо ніхто не голосував
         #await global_message.edit_text("Ніхто ні за кого не проголосував!")
@@ -105,7 +106,8 @@ async def end_vote(global_message):
     else:
         await bot.send_message(players2[0], f"Гравець, якого виключено: {eliminated_player}")
     if eliminated_player in players2:
-        players2.remove(eliminated_player)
+        #players2.remove(eliminated_player)
+        b=1
     #else:
         #await bot.send_message(players2[0], "Не вдалося визначити гравця для виключення.")
 
@@ -148,8 +150,6 @@ async def end_vote1(global_message):
         #await global_message.edit_text("Ніхто ні за кого не проголосував!")
         #return  # Завершуємо голосування, гра продовжується
     #else:
-    #if eliminated_player in players2:
-        #players2.remove(eliminated_player)
     await bot.send_message(players2[0], f"Гравець, якого вибрано: {eliminated_player}")
 #####################################################################################################
 global_message = None
@@ -160,23 +160,40 @@ async def end_vote2(global_message):
     global eliminated_player
     global message_text_1
     global kill
+    global items_with_max_votes
+    if not vote_counts_item:
+        return
     if not vote_counts:
         return
-    #items_with_max_votes = get_items_with_max_votes(vote_counts_item)
-    items_with_max_votes = get_items_with_max_votes()
-    print(f"items_with_max_votes: {items_with_max_votes}")
-    if items_with_max_votes is None:
-        await bot.send_message(players2[0], f"Предмет, не було вибрано: {eliminated_player}")
+    if selected_item is None:
+        await bot.send_message(players2[0], f"Предмет не було вибрано")
+        kill = False
         return
-    eliminated_item = int(items_with_max_votes[0])
+
     #if not vote_counts:  # Якщо ніхто не голосував
         #await global_message.edit_text("Ніхто ні за кого не проголосував!")
         #return  # Завершуємо голосування, гра продовжується
     #else:
-    if eliminated_player in players2:
-        players2.remove(eliminated_player)
-    await bot.send_message(players2[0], f"Предмет, якого вибрано: {eliminated_player}")
-    kill == True
+    
+    items_with_max_votes = get_items_with_max_votes(vote_counts_item)
+    #get_items_with_max_votes()
+    #items_with_max_votes = get_items_with_max_votes()
+    print(f"items_with_max_votes: {items_with_max_votes}")
+    #if items_with_max_votes is None:
+        #await bot.send_message(players2[0], f"Предмет, не було вибрано: {eliminated_player}")
+        #return
+    eliminated_item = items_with_max_votes[0] if items_with_max_votes else None
+    if selected_item is not None and selected_player is not None:
+        kill = True
+    else:
+        kill = False
+    if eliminated_player in players2 and kill:
+        #players2.remove(eliminated_player)
+        await bot.send_message(players2[0], f"Предмет, якого вибрано: {eliminated_item}")
+        kill == True
+    else:
+        await bot.send_message(players2[0], "Жертву не вдалося виключити.")
+        kill = False
 ##########################################################################################################
 queue = []
 queue_active = False
@@ -251,6 +268,7 @@ async def start_game_callback(callback_query: CallbackQuery):
     global message_text_1
     global message_text_5
     global gameover
+    global eliminated_player
 
     # Очистимо чергу, адже гра розпочалася
     active_players = queue.copy()
@@ -307,7 +325,7 @@ async def start_game_callback(callback_query: CallbackQuery):
         how_to_kill = None
         game_in_progress = True
         if game_two == True:
-            if round_one == False:
+            #if round_one == False:
                 if vote_counts:
                     players2 = [player for player in players2 if player != eliminated_player]
                     votes.clear()
@@ -315,19 +333,21 @@ async def start_game_callback(callback_query: CallbackQuery):
                     items_voted.clear()
                     vote_counts_item.clear()
                     vote_counts.clear()  # Очистка голосів
-                    #players_with_max_votes.clear()
-                    #items_with_max_votes.clear() 
-                    for player in players2:
+                    players_with_max_votes = None
+                    items_with_max_votes = None
+                    #for player in players2:
             # Збираємо голоси для кожного гравця
-                        pass
-            vote_keyboard = create_vote_buttons(players2)
-            message_text_1 = "Голосуйте за того, кого хочете стратити"
-            if message_text_1 != message_text_current or current_message.reply_markup is None:
-                await callback_query.message.edit_text(text=message_text_1, reply_markup=vote_keyboard)
-            vote_timer = await wait_for_vote(timeout=20)
-            contiune2 = True
-            await end_vote(global_message)
-            if not vote_counts:  # Якщо ніхто не голосував
+                        #pass
+        
+        vote_keyboard = create_vote_buttons(players2)
+        message_text_1 = "Голосуйте за того, кого хочете стратити"
+        if message_text_1 != message_text_current or current_message.reply_markup is None:
+            await callback_query.message.edit_text(text=message_text_1, reply_markup=vote_keyboard)
+        vote_timer = await wait_for_vote(timeout=20)
+        contiune2 = True
+        eliminated_player = None
+        await end_vote(global_message)
+        if not vote_counts:  # Якщо ніхто не голосував
                 #message_text_1 = "Ніхто ні за кого не проголосував!"
                 message_text_5 = "Ніхто ні за кого не проголосував!"
                 await callback_query.message.edit_text(text=message_text_5, reply_markup=None)
@@ -569,7 +589,9 @@ async def kill_player_callback(callback_query: CallbackQuery):
                 #await bot.send_message(callback_query.from_user.id, "Ця жертва вже не доступна для вбивства!")
     # Повідомляємо гравцю про вбивство
                 await bot.send_message(callback_query.from_user.id, "Гра триває, виберіть іншу жертву або дійте за іншим планом.")
-                await bot.send_message(callback_query.from_user.id, f"Ви вбили {selected_player} за допомогою {selected_item}.")
+                if selected_item is not None:
+                    await bot.send_message(callback_query.from_user.id, f"Ви вбили {selected_player} за допомогою {selected_item}.")
+
     except asyncio.TimeoutError:
             # Якщо час вичерпано, інформуємо користувача
             await bot.send_message(callback_query.from_user.id, "Час на вибір предмета вичерпано!")
@@ -610,10 +632,10 @@ def how_the_kill(selected_item):
     elif selected_item == "бутилка води":
         how_to_kill = "Ви помітили, що у тіла в легенях багато води"
     return how_to_kill
-items_voted = set()
-vote_counts_item = Counter()
-selected_item = None
 
+items_voted = set()
+selected_item = None
+vote_counts_item = Counter()
 @router.callback_query(lambda c: c.data.startswith("item_"))
 async def item_selection_callback(callback_query: CallbackQuery):
     global selected_player, players2
@@ -622,7 +644,7 @@ async def item_selection_callback(callback_query: CallbackQuery):
     global selected_item
     global votes, items_voted
     global vote_counts_item
-    votes.clear()
+    #votes.clear()
     
     # Отримуємо вибраний предмет
     selected_item = callback_query.data.split('_')[1]
@@ -633,7 +655,7 @@ async def item_selection_callback(callback_query: CallbackQuery):
         return
 
     items_voted.add(callback_query.from_user.id)
-    vote_counts[selected_item] += 1
+    vote_counts_item[selected_item] += 1
     await callback_query.answer(f"Ваш голос за предмет {selected_item} зараховано.")
     #user_item_selection[callback_query.from_user.id] = True
     #kill = True
@@ -757,9 +779,12 @@ def get_players_with_max_votes(vote_counts):  # Якщо немає голосі
     players_with_max_votes = [player for player, votes in vote_counts.items() if votes == max_votes]
     print(players_with_max_votes)
     return players_with_max_votes
+
+#vote_counts_item = Counter()
 ###########################################################################################################################################3
 def get_items_with_max_votes(vote_counts_item):  # Якщо немає голосів, повертаємо порожній список
     global items_with_max_votes
+    
     if not vote_counts_item:
         return
     max_votes = max(vote_counts_item.values())  # Знаходимо максимальну кількість голосів
