@@ -477,7 +477,6 @@ def assign_role(players):
 #deldeldeldeldeldeldeldeldeldeldeldeldeldeldel
     for player in active_players:
             mafia.append(player)
-
 #deldeldeldeldeldeldeldeldeldeldeldeldeldeldel
 
     detectives = random.sample([p for p in players2 if p not in mafia], num_detectives)
@@ -675,12 +674,12 @@ async def wait_for_item_selection(user_id: int):
         await asyncio.sleep(1)  # Перевірка кожну секунду
 #####################################################################################################################
 @router.message()
-async def handle_private_message(message: Message):
+async def handle_private_message(message: Message):             #писати можна тільки вдень (дозвіл письма)
     global players2  # Список гравців, які залишились в грі
     global roles
     global kill
     global game_in_progress
-    #global whrite
+    global whrite
 
     if game_in_progress == False:
         if whrite == True:
