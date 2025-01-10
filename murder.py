@@ -425,6 +425,8 @@ async def start_game_callback(callback_query: CallbackQuery):
                         #await callback_query.message.edit_text(text=message_text_1, reply_markup=None)
                     await asyncio.sleep(2)
         await gameover_or_no()
+        await game_over_win()
+        #gameover = gameover_or_no()
         game_two = True
         round_one = False
         kill = None
@@ -459,12 +461,25 @@ async def wait_for_vote(timeout: int):
 ###################################################################################################################
 gameover_players = None
 async def gameover_or_no():
+    global mafia_players
+    global gameover
+    global gameover_players
     gameover_players = len(players2) - mafia_players
-    if gameover_players == mafia_players:
+    #gameover_players = 2
+    if gameover_players <= mafia_players:
+        gameover = True
+        return gameover
+    elif mafia_players == 0:
         gameover = True
         return gameover
     else:
-        return
+        return gameover
+###################################################################################################################
+async def game_over_win():
+    if gameover_players <= mafia_players:
+        await bot.send_message(players2[0], "Гра закінчилась, мафія перемогла!")
+    elif mafia_players == 0:
+        await bot.send_message(players2[0], "Гра закінчилась, місто перемогло!")
 ##################################################################################################################
 def assign_role(players):
     global mafia_players
