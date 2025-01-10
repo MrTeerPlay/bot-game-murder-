@@ -495,7 +495,8 @@ def assign_role(players):
     else:
         num_mafia = max(1, len(players2) // 3)
         num_detectives = max(1, len(players2) // 3)
-    mafia = random.sample(players2, num_mafia)
+    #mafia = random.sample(players2, num_mafia)
+    mafia = []
 
 #deldeldeldeldeldeldeldeldeldeldeldeldeldeldel
     for player in active_players:
@@ -568,6 +569,7 @@ continue1 = False
 #################################################################################################################
 selected_player = None
 selected_player_str = str(selected_player)
+players_voted_mafia = 0
 #####################################################################################################################
 @router.callback_query(lambda c: c.data.startswith("kill_"))
 async def kill_player_callback(callback_query: CallbackQuery):
@@ -579,6 +581,8 @@ async def kill_player_callback(callback_query: CallbackQuery):
     global player_items
     global items_list
     global kill
+    global players_voted
+    global players_voted_mafia
     # Отримуємо ID жертви
     #if startkill == True:
     try:
@@ -593,30 +597,33 @@ async def kill_player_callback(callback_query: CallbackQuery):
     
                 players_voted.add(callback_query.from_user.id)
                 vote_counts[selected_player] += 1
+                players_voted_mafia += 1
                 await callback_query.answer(f"Ваш голос за гравця {selected_player} зараховано.")
                 #await bot.answer_callback_query(callback_query.from_user.id, f"Ви вибрали гравця {selected_player}")
-                await wait_for_vote(timeout=10)
+                #await wait_for_vote(timeout=10)
                 #if vote_timer is None:
                     #print("Time is out... All correst!")
-
                     #return
                 await end_vote1(global_message)
         # Створюємо клавіатуру для вибору предмету
 
-                item_keyboard = create_item_buttons(callback_query.from_user.id)  # Викликаємо функцію для створення клавіатури з предметами
-                await bot.send_message(callback_query.from_user.id, f"Виберіть предмет для вбивства {selected_player_str}", reply_markup=item_keyboard)
+                if players_voted_mafia == mafia_players:
+        #       
+                    players_voted_mafia = 0         
+                    item_keyboard = create_item_buttons(callback_query.from_user.id)  # Викликаємо функцію для створення клавіатури з предметами
+                    await bot.send_message(callback_query.from_user.id, f"Виберіть предмет для вбивства {selected_player_str}", reply_markup=item_keyboard)
         # Якщо користувач вже голосував, відправляємо повідомлення і не дозволяємо голосувати повторно
                 #items_voted.add(callback_query.from_user.id)
                 #vote_counts[selected_item] += 1
                 #await callback_query.answer(f"Ваш голос за предмет {selected_item} зараховано.")
-                await wait_for_vote(timeout=10)
-                await end_vote2(global_message)
+                #await wait_for_vote(timeout=10)
                 #await bot.send_message(callback_query.from_user.id, "Ця жертва вже не доступна для вбивства!")
     # Повідомляємо гравцю про вбивство
-                await bot.send_message(callback_query.from_user.id, "Гра триває, виберіть іншу жертву або дійте за іншим планом.")
-                if selected_item is not None:
-                    await bot.send_message(callback_query.from_user.id, f"Ви вбили {selected_player} за допомогою {selected_item}.")
-                    kill = True
+                    #await end_vote2(global_message)
+                    #if selected_item is not None:
+                        #await bot.send_message(callback_query.from_user.id, "Гра триває, виберіть іншу жертву або дійте за іншим планом.")
+                        #await bot.send_message(callback_query.from_user.id, f"Ви вбили {selected_player} за допомогою {selected_item}.")
+                        #kill = True
 
     except asyncio.TimeoutError:
             # Якщо час вичерпано, інформуємо користувача
@@ -658,7 +665,7 @@ def how_the_kill(selected_item):
     elif selected_item == "бутилка води":
         how_to_kill = "Ви помітили, що у тіла в легенях багато води"
     return how_to_kill
-
+    
 items_voted = set()
 vote_counts_item = Counter()
 @router.callback_query(lambda c: c.data.startswith("item_"))
@@ -669,8 +676,9 @@ async def item_selection_callback(callback_query: CallbackQuery):
     global selected_item
     global votes, items_voted
     global vote_counts_item
+    global players_voted_mafia
     #votes.clear()
-    selected_item = None
+    #selected_item = None
     
     # Отримуємо вибраний предмет
     selected_item = callback_query.data.split('_')[1]
@@ -682,9 +690,17 @@ async def item_selection_callback(callback_query: CallbackQuery):
 
     items_voted.add(callback_query.from_user.id)
     vote_counts_item[selected_item] += 1
+    players_voted_mafia += 1
     await callback_query.answer(f"Ваш голос за предмет {selected_item} зараховано.")
     #user_item_selection[callback_query.from_user.id] = True
     #kill = True
+    if players_voted_mafia == mafia_players:
+        players_voted_mafia = 0
+        await end_vote2(global_message)
+        if selected_item is not None:
+            await bot.send_message(callback_query.from_user.id, "Гра триває, виберіть іншу жертву або дійте за іншим планом.")
+            await bot.send_message(callback_query.from_user.id, f"Ви вбили {selected_player} за допомогою {selected_item}.")
+        kill = True
     
     # Можливо потрібно запитати, чи хоче він вибрати іншу жертву або чи буде продовження гри
 
